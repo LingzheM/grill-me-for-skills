@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Glossary · 3D-rotations 词汇表</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#6b6b6b; --rule:#e4e0d8; --bg:#fbf9f4; --accent:#8a5a2b; --code:#f0ece2; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink);
+    font-family: "Iowan Old Style", Georgia, "Songti SC", serif;
+    line-height: 1.6; margin: 0; padding: 4rem 1.5rem; }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1 { font-size: 2rem; font-weight: 600; margin: 0 0 .2rem; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-style: italic; margin: 0 0 2.5rem; }
+  h2 { font-size: 1.2rem; margin: 2.6rem 0 .8rem; padding-bottom: .3rem;
+    border-bottom: 1px solid var(--rule); letter-spacing: .02em; }
+  dt { font-weight: 600; margin-top: 1.1rem; }
+  dt code, code { background: var(--code); padding: .08em .35em; border-radius: 3px;
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace; font-size: .86em; }
+  dd { margin: .2rem 0 0; color: #2a2a2a; }
+  dd .why { color: var(--accent); font-style: italic; }
+  table { border-collapse: collapse; width: 100%; margin-top: .6rem; font-size: .92rem; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-style: italic; }
+  .axis { font-family: "SF Mono", Consolas, monospace; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    color: var(--muted); font-size: .85rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Glossary · 3D-rotations</h1>
+  <p class="sub">所有课程共用的词汇。把整个项目压成两层：<strong>旋钮（knobs）</strong> × <strong>映射曲线（curves）</strong>。</p>
+
+  <h2>① 舞台 — The 3D Stage</h2>
+  <dl>
+    <dt><code>perspective</code>（透视）</dt>
+    <dd>设在<strong>父元素</strong>上的"相机到屏幕的距离"，单位 px。值越小 = 相机越近 = 3D 透视越夸张。
+      <span class="why">没有它，rotationX/Y 看起来是平的（没有近大远小）。</span>本项目设在 <code>.gallery__item-wrap</code> 上：<code>perspective: 900px</code>。</dd>
+    <dt><code>transform-style: preserve-3d</code></dt>
+    <dd>设在被转的元素上，告诉浏览器"在真正的 3D 空间里渲染"，而不是先压平再贴上去。本项目设在 <code>.gallery__item</code> 上。</dd>
+  </dl>
+
+  <h2>② 旋钮 — Knobs（每个 variation 转的东西）</h2>
+  <table>
+    <tr><th>旋钮</th><th>轴 / 含义</th><th>生活类比</th></tr>
+    <tr><td class="axis">rotationX</td><td>绕<strong>水平</strong>轴翻（pitch / 俯仰）</td><td>卡片向你/远离你"点头"地倒下</td></tr>
+    <tr><td class="axis">rotationY</td><td>绕<strong>竖直</strong>轴转（yaw / 偏航）</td><td>像一扇门 / 转盘左右转</td></tr>
+    <tr><td class="axis">rotationZ</td><td>绕<strong>指向你</strong>的轴转（roll / 滚转）</td><td>时钟指针在平面内打转</td></tr>
+    <tr><td class="axis">z</td><td>沿"指向你"的轴<strong>平移</strong>（深度）</td><td>z 负 = 推远变小；z 正 = 拉近变大（需 perspective 才看得见）</td></tr>
+    <tr><td class="axis">scaleX / scaleY</td><td>横向 / 纵向缩放</td><td>压扁拉长（squash &amp; stretch）</td></tr>
+    <tr><td class="axis">filter</td><td>blur / saturate / brightness</td><td>模糊、饱和度、亮度——做"虚化/显影"</td></tr>
+  </table>
+
+  <h2>③ 引擎 — The Scroll Engine</h2>
+  <dl>
+    <dt><code>ScrollTrigger</code> + <code>scrub: true</code></dt>
+    <dd>把动画进度<strong>直接绑到滚动条</strong>：你滚多少，动画走多少（可往回）。</dd>
+    <dt><code>self.progress</code></dt>
+    <dd>元素穿过触发区间时的进度：<code>0</code>=刚进入，<code>0.5</code>=正中，<code>1</code>=离开。
+      <span class="why">这是唯一的输入信号。所有花样都是把这个 0→1 映射成数值。</span></dd>
+    <dt><code>start / end</code></dt>
+    <dd>触发区间。本项目：<code>start:'top bottom+=20%'</code>，<code>end:'bottom top-=20%'</code>（元素从屏幕下方一点进、到上方一点出）。</dd>
+  </dl>
+
+  <h2>④ 映射曲线 — Curves（"为什么不同"的核心）</h2>
+  <dd style="margin:0 0 .6rem">把 progress (0→1) 变成实际数值的函数。同样的旋钮，换条曲线，感觉天差地别。</dd>
+  <table>
+    <tr><th>表达式</th><th>形状 / 作用</th></tr>
+    <tr><td class="axis">interpolate(a, b, p)</td><td>从 a 线性走到 b（p=0→a, p=1→b）。最朴素的"从…到…"。</td></tr>
+    <tr><td class="axis">Math.sin(p * π)</td><td>两端=0、正中=1 的钟形。常用于"正中时最深/最亮"，两端归零。</td></tr>
+    <tr><td class="axis">Math.cos(p * π)</td><td>p=0→1、正中→0、p=1→-1。常用于"两端强、正中过零"。</td></tr>
+    <tr><td class="axis">pow(sin(pπ), n)</td><td>n 越大，钟形越<strong>尖</strong>：两端更平、正中更突然（sin⁴/sin⁸ = 猛地穿透）。</td></tr>
+    <tr><td class="axis">sign(x)·|x|^k</td><td>保留正负号但压/拉幅度，做"带缓动的全程摆动"。</td></tr>
+    <tr><td class="axis">holdAtMiddle(p, hold)</td><td>把进度在 0.5 处<strong>停住一段</strong>，让卡片在正中"定格展示"。（Variation 5 自定义）</td></tr>
+  </table>
+
+  <h2>⑤ 布局与平滑</h2>
+  <dl>
+    <dt><code>positionGalleryItems()</code></dt>
+    <dd>用 <code>Math.sin(i * 步长) * amplitude</code> 给每个 wrap 一个左右偏移，形成蛇形排布。步长/amplitude 不同 → 排布疏密不同。</dd>
+    <dt>Lenis</dt>
+    <dd>平滑滚动库。和 GSAP ticker 接通，让 scrub 丝滑。Variation 4 还从它读 <code>velocity</code>（滚动速度）。</dd>
+  </dl>
+
+  <footer>
+    词汇表是"压缩过的本质"，每节课都遵守这里的命名。
+    主来源：<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_transforms/Using_CSS_transforms">MDN · Using CSS transforms</a> ·
+    <a href="https://gsap.com/docs/v3/Plugins/ScrollTrigger/">GSAP · ScrollTrigger</a>
+  </footer>
+</main>
+</body>
+</html>
