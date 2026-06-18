@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson 1 · The 3D Stage</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#6b6b6b; --rule:#e4e0d8; --bg:#fbf9f4;
+    --accent:#8a5a2b; --code:#f0ece2; --good:#2f7d4f; --bad:#b13c2e; --card:#3a6ea5; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink);
+    font-family: "Iowan Old Style", Georgia, "Songti SC", serif;
+    line-height: 1.65; margin: 0; padding: 3.5rem 1.5rem; }
+  main { max-width: 47rem; margin: 0 auto; }
+  .kicker { color: var(--accent); font-style: italic; letter-spacing: .04em; margin: 0; }
+  h1 { font-size: 2.1rem; font-weight: 600; margin: .15rem 0 .4rem; letter-spacing: -.01em; }
+  .win { background: #f3efe5; border-left: 3px solid var(--accent); padding: .7rem 1rem;
+    margin: 1.4rem 0 2rem; font-size: .96rem; }
+  h2 { font-size: 1.25rem; margin: 2.6rem 0 .7rem; padding-bottom: .3rem; border-bottom: 1px solid var(--rule); }
+  p, li { font-size: 1.02rem; }
+  code { background: var(--code); padding: .08em .35em; border-radius: 3px;
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace; font-size: .85em; }
+  em.term { color: var(--accent); font-style: normal; font-weight: 600; }
+
+  /* ---- interactive stage ---- */
+  .stage-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;
+    margin: 1.2rem 0; }
+  @media (max-width: 640px){ .stage-wrap { grid-template-columns: 1fr; } }
+  .stage { background: #15171c; border-radius: 8px; height: 320px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #scene { /* perspective set via JS */ }
+  #card { width: 150px; aspect-ratio: 4/5; border-radius: 6px;
+    background: linear-gradient(150deg, #5b8fd0, #2f4a78);
+    transform-style: preserve-3d; color: #fff; display: flex; align-items: center;
+    justify-content: center; font-family: "SF Mono", Consolas, monospace; font-size: .8rem;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.15); }
+  .controls { font-size: .9rem; }
+  .controls label { display: grid; grid-template-columns: 7.5rem 1fr 3.2rem; gap: .5rem;
+    align-items: center; margin: .55rem 0; }
+  .controls label span:first-child { font-family: "SF Mono", Consolas, monospace; font-size: .8rem; }
+  .controls output { font-family: "SF Mono", Consolas, monospace; color: var(--accent); text-align: right; }
+  .controls .toggle { display: flex; align-items: center; gap: .5rem; margin: 1rem 0 .3rem;
+    font-family: "SF Mono", Consolas, monospace; font-size: .82rem; }
+  button.reset { font: inherit; font-size: .82rem; margin-top: .4rem; cursor: pointer;
+    background: #efe9dc; border: 1px solid var(--rule); border-radius: 4px; padding: .3rem .7rem; }
+  .readout { font-family: "SF Mono", Consolas, monospace; font-size: .78rem; color: var(--muted);
+    background: var(--code); padding: .6rem .7rem; border-radius: 5px; margin-top: .8rem;
+    white-space: pre-wrap; word-break: break-all; }
+
+  /* ---- quiz ---- */
+  .quiz { background: #f6f2e9; border-radius: 8px; padding: 1.1rem 1.3rem; margin: 1rem 0; }
+  .quiz p.q { font-weight: 600; margin: .2rem 0 .7rem; }
+  .quiz button { display: block; width: 100%; text-align: left; font: inherit; font-size: .95rem;
+    background: #fff; border: 1px solid var(--rule); border-radius: 5px; padding: .5rem .8rem;
+    margin: .4rem 0; cursor: pointer; transition: .15s; }
+  .quiz button:hover { border-color: var(--accent); }
+  .quiz button.correct { background: #e3f1e8; border-color: var(--good); color: var(--good); }
+  .quiz button.wrong { background: #f6e3e0; border-color: var(--bad); color: var(--bad); }
+  .quiz .fb { font-size: .9rem; margin-top: .5rem; min-height: 1.2em; }
+  .quiz .fb.show-good { color: var(--good); } .quiz .fb.show-bad { color: var(--bad); }
+
+  blockquote { border-left: 3px solid var(--rule); margin: 1.4rem 0; padding: .3rem 0 .3rem 1rem;
+    color: var(--muted); font-style: italic; }
+  a { color: var(--accent); }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+    color: var(--muted); font-size: .88rem; }
+  .nav { font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker">Lesson 1 / 5 · 3D-rotations</p>
+  <h1>The 3D Stage：网页里怎么"立"起一张卡片</h1>
+
+  <div class="win">
+    <strong>这一课的唯一胜利：</strong>明白 <code>perspective</code> 是把平面旋转变成「真 3D」的<strong>总开关</strong>，
+    并能凭直觉说出 <code>rotationX / Y / Z</code> 和 <code>z</code> 各自在干嘛。搞定这一点，后面 5 个 variation 的差异才看得懂。
+  </div>
+
+  <h2>① 为什么需要一个"舞台"</h2>
+  <p>
+    默认情况下，浏览器是个<strong>平面画家</strong>：哪怕你写 <code>rotateX(60deg)</code>，它也只是把这张图按比例压扁，
+    没有「近的一边大、远的一边小」的透视感——看起来假。要让旋转变成<em class="term">真 3D</em>，需要两样东西：
+  </p>
+  <ul>
+    <li><code>perspective: 900px</code> —— 设在<strong>父元素</strong>上，相当于"相机离屏幕 900px"。这是 3D 的总开关。</li>
+    <li><code>transform-style: preserve-3d</code> —— 设在被转的元素上，让它在真正的 3D 空间里被渲染。</li>
+  </ul>
+  <p>在原项目里，<code>perspective</code> 设在 <code>.gallery__item-wrap</code>，<code>preserve-3d</code> 设在 <code>.gallery__item</code>。
+    下面这个舞台就是同一个结构。<strong>先去拨滑块，再往下读。</strong></p>
+
+  <h2>② 上手玩：拨动旋钮，看卡片动</h2>
+  <div class="stage-wrap">
+    <div class="stage"><div id="scene"><div id="card">CARD</div></div></div>
+    <div class="controls">
+      <label><span>perspective</span><input id="persp" type="range" min="200" max="2000" value="900"><output id="persp-o">900</output></label>
+      <label><span>rotationX</span><input id="rx" type="range" min="-180" max="180" value="0"><output id="rx-o">0°</output></label>
+      <label><span>rotationY</span><input id="ry" type="range" min="-180" max="180" value="0"><output id="ry-o">0°</output></label>
+      <label><span>rotationZ</span><input id="rz" type="range" min="-180" max="180" value="0"><output id="rz-o">0°</output></label>
+      <label><span>z (depth)</span><input id="z" type="range" min="-400" max="400" value="0"><output id="z-o">0</output></label>
+      <div class="toggle"><input id="noPersp" type="checkbox"><label for="noPersp" style="display:inline">关掉 perspective（变回平面画家）</label></div>
+      <button class="reset" id="reset">↺ 复位</button>
+      <div class="readout" id="readout"></div>
+    </div>
+  </div>
+
+  <blockquote>
+    试三件事：①只拉 <code>rotationY</code> 到 60°——像门一样转。②勾上"关掉 perspective"再拉同一个值——透视消失，变平了，这就是总开关的作用。
+    ③把 <code>z</code> 拉到 -300——卡片被推远变小（只有 perspective 开着才看得见）。
+  </blockquote>
+
+  <h2>③ 三个轴的记法</h2>
+  <ul>
+    <li><code>rotationX</code> = 绕<strong>水平</strong>轴翻 → 卡片向你/远离你"点头倒下"（pitch）。</li>
+    <li><code>rotationY</code> = 绕<strong>竖直</strong>轴转 → 像<strong>一扇门</strong>左右开（yaw）。</li>
+    <li><code>rotationZ</code> = 绕<strong>指向你</strong>的轴转 → 像<strong>钟表指针</strong>在平面里打转（roll）。</li>
+    <li><code>z</code> = 沿"指向你"的轴<strong>平移</strong>：负=推远变小，正=拉近变大。</li>
+  </ul>
+  <p>整个项目里，每个 variation 的旋转，本质都只是"给这几个旋钮设不同的值"。完整词汇见
+    <a href="../reference/glossary.html">Glossary</a>。</p>
+
+  <h2>④ 自测（凭记忆答，先别翻上面）</h2>
+  <div class="quiz" id="quiz">
+    <div data-correct="0">
+      <p class="q">1. 让 <code>rotationX</code> 看起来有"近大远小"、而不是被压平的属性是？</p>
+      <button>perspective</button><button>transform-style</button><button>will-change</button><button>aspect-ratio</button>
+      <div class="fb"></div>
+    </div>
+    <div data-correct="0">
+      <p class="q">2. <code>rotationY</code> 绕哪个轴、像什么？</p>
+      <button>绕竖直轴转，像一扇门</button><button>绕水平轴翻，像点头倒</button><button>绕指向你轴，像钟表针</button><button>沿深度平移，像推远拉</button>
+      <div class="fb"></div>
+    </div>
+    <div data-correct="0">
+      <p class="q">3. 把 <code>z</code> 设成 -300（perspective 开着），卡片会？</p>
+      <button>被推远，看着变小</button><button>被拉近，看着变大</button><button>在平面内原地转</button><button>向左右两侧平移</button>
+      <div class="fb"></div>
+    </div>
+  </div>
+
+  <h2>⑤ 读一篇 + 问我</h2>
+  <p><strong>主来源（读这个）：</strong>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_transforms/Using_CSS_transforms" target="_blank">MDN · Using CSS transforms</a>
+    ——看"3D specific" 那一节里 <code>perspective</code> 和 <code>transform-style</code> 的图示，和你刚才拨的滑块对上号。</p>
+  <p>想看这个项目作者本人的思路：
+    <a href="https://tympanus.net/codrops/?p=116660" target="_blank">Codrops · Exploring 3D Image Rotations on Scroll</a>。</p>
+  <blockquote>我是你的老师。任何地方卡住——某个轴想不通、滑块行为奇怪、术语对不上——直接回来问我，别自己硬扛。</blockquote>
+
+  <p class="nav">→ 下一课预告：<strong>The Scroll Engine</strong>——滚动条怎么变成一个 <code>0→1</code> 的数字 <code>progress</code>，再喂给这些旋钮。</p>
+
+  <footer>3D-rotations 教学 · Lesson 1 of 5 · 配套 <a href="../reference/glossary.html">Glossary</a></footer>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const persp=$('persp'), rx=$('rx'), ry=$('ry'), rz=$('rz'), z=$('z'),
+        noPersp=$('noPersp'), scene=$('scene'), card=$('card'), readout=$('readout');
+  function render(){
+    scene.style.perspective = noPersp.checked ? 'none' : persp.value + 'px';
+    card.style.transform =
+      `rotateX(${rx.value}deg) rotateY(${ry.value}deg) rotateZ(${rz.value}deg) translateZ(${z.value}px)`;
+    $('persp-o').textContent = noPersp.checked ? 'off' : persp.value;
+    $('rx-o').textContent = rx.value+'°'; $('ry-o').textContent = ry.value+'°';
+    $('rz-o').textContent = rz.value+'°'; $('z-o').textContent = z.value;
+    readout.textContent =
+`/* 父层 .scene */
+perspective: ${noPersp.checked ? 'none' : persp.value+'px'};
+
+/* 卡片 .card */
+transform-style: preserve-3d;
+transform: rotateX(${rx.value}deg) rotateY(${ry.value}deg)
+           rotateZ(${rz.value}deg) translateZ(${z.value}px);`;
+  }
+  [persp,rx,ry,rz,z,noPersp].forEach(el=>el.addEventListener('input',render));
+  $('reset').addEventListener('click',()=>{
+    persp.value=900; rx.value=0; ry.value=0; rz.value=0; z.value=0; noPersp.checked=false; render();
+  });
+  render();
+
+  // quiz: immediate feedback, no clues
+  document.querySelectorAll('#quiz > div').forEach(q=>{
+    const correct = +q.dataset.correct;
+    const fb = q.querySelector('.fb');
+    const msgs = ['对。','再想想——对照上面的图和滑块。'];
+    q.querySelectorAll('button').forEach((b,i)=>{
+      b.addEventListener('click',()=>{
+        q.querySelectorAll('button').forEach(x=>x.classList.remove('correct','wrong'));
+        if(i===correct){ b.classList.add('correct'); fb.textContent='✓ '+msgs[0]; fb.className='fb show-good'; }
+        else { b.classList.add('wrong'); q.querySelectorAll('button')[correct].classList.add('correct');
+               fb.textContent='✗ '+msgs[1]; fb.className='fb show-bad'; }
+      });
+    });
+  });
+</script>
+</body>
+</html>
