@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson M0 · 稻草人：朴素向量 RAG</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --soft:#555; --faint:#888; --line:#e2ddd2;
+    --bg:#fdfcf8; --accent:#7a3b2e; --accent2:#2e5a7a; --chip:#f1ece0;
+    --code:#f5f2ea; --good:#2e7a4f; --bad:#a33;
+  }
+  *{box-sizing:border-box}
+  html{font-size:17px}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC",serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:780px; margin:0 auto; padding:3.5rem 1.5rem 6rem}
+  .kicker{font-size:.78rem; letter-spacing:.14em; text-transform:uppercase; color:var(--accent2)}
+  .kicker a{color:var(--accent2)}
+  h1{font-size:2rem; line-height:1.15; margin:.3rem 0 .3rem; letter-spacing:-.01em}
+  .sub{color:var(--soft); font-style:italic; margin:0 0 1.6rem}
+  h2{font-size:.95rem; text-transform:uppercase; letter-spacing:.12em; color:var(--accent);
+    border-bottom:1px solid var(--line); padding-bottom:.4rem; margin:2.6rem 0 1rem}
+  p{margin:.6rem 0}
+  code{font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace;
+    font-size:.82em; background:var(--code); padding:.1em .35em; border-radius:4px}
+  pre{background:#2b2622; color:#f3efe6; border-radius:8px; padding:1rem 1.1rem;
+    overflow-x:auto; font-size:.8rem; line-height:1.5}
+  pre code{background:none; padding:0; color:inherit; font-size:1em}
+  .pipe{display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; margin:1rem 0; font-size:.84rem}
+  .pipe span{background:#fff; border:1px solid var(--line); border-radius:20px; padding:.28rem .7rem; white-space:nowrap}
+  .pipe .arr{border:none; background:none; color:var(--faint); padding:0 .1rem}
+  .insight{background:#fff; border:1px solid var(--line); border-radius:8px; padding:1rem 1.2rem; margin:1.2rem 0}
+  .insight b{color:var(--accent)}
+  ol.steps{padding-left:1.2rem} ol.steps li{margin:.5rem 0}
+
+  /* predict widget */
+  .quiz{border:1px solid var(--line); border-radius:10px; background:#fff; padding:1rem 1.2rem; margin:1rem 0}
+  .q{padding:.7rem 0; border-bottom:1px dashed var(--line)}
+  .q:last-child{border-bottom:none}
+  .q .txt{font-size:.95rem; margin-bottom:.45rem}
+  .q button{font:inherit; font-size:.82rem; cursor:pointer; border:1px solid var(--line);
+    background:var(--chip); border-radius:6px; padding:.25rem .8rem; margin-right:.4rem}
+  .q button:hover{border-color:var(--accent2)}
+  .q .reveal{display:none; margin-top:.5rem; font-size:.86rem; padding:.5rem .7rem; border-radius:6px; background:#f7f4ec}
+  .q.answered .reveal{display:block}
+  .verdict-good{color:var(--good); font-weight:bold}
+  .verdict-bad{color:var(--bad); font-weight:bold}
+
+  .challenge{background:#fbf3f1; border:1px solid #e3c3bb; border-radius:8px; padding:.9rem 1.1rem; margin:1.2rem 0}
+  .challenge b{color:var(--accent)}
+  .foot{margin-top:3rem; padding-top:1rem; border-top:1px solid var(--line); color:var(--soft); font-size:.9rem}
+  .foot b{color:var(--accent)}
+  a{color:var(--accent2)}
+  @media print{ body{background:#fff} pre{background:#f2efe8; color:#222} .quiz .reveal{display:block} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="kicker">GraphRAG From Scratch · Milestone 0 · <a href="../reference/graphrag-build-roadmap.html">↩ 路线图</a></p>
+  <h1>稻草人：朴素向量 RAG</h1>
+  <p class="sub">亲手造一个会失败的 baseline —— 它答对局部问题、答砸全局问题。这就是你后面要打败的对手。</p>
+
+  <p>这一课只有<strong>一个目标</strong>：把「为什么需要 GraphRAG」从道理变成<strong>你亲眼看到的失败</strong>。
+  没有这一步，后面所有 community、map-reduce 都只是抽象。先建立痛感，再谈解药。</p>
+
+  <h2>知识 · naive RAG 就是这 5 步</h2>
+  <div class="pipe">
+    <span>① 切 chunk</span><span class="arr">→</span>
+    <span>② embed 每块</span><span class="arr">→</span>
+    <span>③ embed 问题</span><span class="arr">→</span>
+    <span>④ cosine 取 top-k</span><span class="arr">→</span>
+    <span>⑤ 塞进 prompt 让 LLM 答</span>
+  </div>
+  <p>就这么多。没有图、没有社区、没有摘要。检索靠的纯粹是「<strong>问题向量和哪几块文本最像</strong>」。
+  这正是它的能力边界所在。</p>
+
+  <div class="insight">
+    <p style="margin-top:0"><b>本课唯一要记住的论点（M5 会用它做 retrieval 锚点）：</b></p>
+    <p style="margin-bottom:0">naive RAG 只能取回「<b>和问题最相似的几块原文</b>」。<br>
+    所以——<b>局部问题</b>（答案集中在书里某几处，如「Scrooge 是谁」）→ 命中即答好；<br>
+    <b>全局问题</b>（答案弥散在全书，如「核心主题有哪些」）→ <b>没有哪几个 chunk 能代表全局</b>，
+    top-k 只抓到零碎几块，必然答得片面/空泛。这个缺口，就是 GraphRAG 用 community reports 来填的。</p>
+  </div>
+
+  <h2>动手 · 跑起来（代码已给好）</h2>
+  <p>M0 的代码我已经写好放在 <code>graphrag-from-scratch/naive_rag.py</code>（这是稻草人，给现成的让你快速拿到 baseline；
+  从 M1 起核心逻辑由你来写）。三步：</p>
+  <pre><code>cd graphrag-from-scratch
+pip install ollama numpy
+python naive_rag.py        # 首次会自动下载书 + 做 embedding（几分钟，有缓存）</code></pre>
+  <p>它会用 <code>bge-m3</code> 建索引，然后用 <code>qwen2.5:7b</code> 回答 <strong>4 个问题</strong>：2 个局部、2 个全局。
+  打印每个答案命中的 chunk 编号和相似度。</p>
+
+  <h2>先预测，再运行 · retrieval practice</h2>
+  <p><strong>跑之前先猜</strong>（这一步才是学习发生的地方，别跳）。下面每题点一个你的预测，再看揭晓：</p>
+
+  <div class="quiz" id="quiz">
+    <div class="q" data-ans="good">
+      <div class="txt">Q1 · “Who is Scrooge and what is he like?”</div>
+      <button onclick="pick(this,'good')">会答好</button>
+      <button onclick="pick(this,'bad')">会翻车</button>
+      <div class="reveal"><span class="verdict-good">会答好 ✅</span> —— 局部问题。Scrooge 的刻画集中在开篇几段，top-k 一抓一个准。</div>
+    </div>
+    <div class="q" data-ans="good">
+      <div class="txt">Q2 · “What does Marley's ghost say to Scrooge?”</div>
+      <button onclick="pick(this,'good')">会答好</button>
+      <button onclick="pick(this,'bad')">会翻车</button>
+      <div class="reveal"><span class="verdict-good">会答好 ✅</span> —— 局部问题。这是一个集中场景，语义独特，检索容易命中那几块。</div>
+    </div>
+    <div class="q" data-ans="bad">
+      <div class="txt">Q3 · “What are the main themes of the whole book?”</div>
+      <button onclick="pick(this,'good')">会答好</button>
+      <button onclick="pick(this,'bad')">会翻车</button>
+      <div class="reveal"><span class="verdict-bad">会翻车 ❌</span> —— 全局问题。“主题”弥散全书，没有哪 5 块能代表整本；模型只能拿零碎几块硬凑，答得泛或偏。</div>
+    </div>
+    <div class="q" data-ans="bad">
+      <div class="txt">Q4 · “How does Scrooge transform across the whole story, step by step?”</div>
+      <button onclick="pick(this,'good')">会答好</button>
+      <button onclick="pick(this,'bad')">会翻车</button>
+      <div class="reveal"><span class="verdict-bad">会翻车 ❌</span> —— 全局问题。转变弧线横跨全书时序，top-k 抓不全、也不保证按顺序，必然有断层。</div>
+    </div>
+  </div>
+  <p style="font-size:.9rem; color:var(--faint)">跑完对照：你的预测对了几个？<strong>更关键的是看答案本身</strong>——
+  Q3/Q4 的答案是不是明显比 Q1/Q2 空泛、片面、或漏掉了关键？把这种「翻车的手感」记住。</p>
+
+  <h2>拷打 · 一个反直觉实验</h2>
+  <div class="challenge">
+    <p style="margin-top:0"><b>挑战：</b>把 <code>naive_rag.py</code> 里的 <code>TOP_K = 5</code> 改成 <code>TOP_K = 20</code>，删掉 <code>cache/</code> 不必删（只改检索），重跑。</p>
+    <p style="margin-bottom:0"><b>问自己：</b>全局问题 Q3/Q4 变好了吗？<br>
+    （预期：<b>基本没救，甚至更糟</b>——塞更多 chunk 只是引入更多噪声，依然没有「全局结构」这种东西存在于任何 chunk 里。
+    这恰恰证明：全局问题缺的不是「召回更多原文」，而是<b>事先把全局总结好</b>——那正是 GraphRAG 的 community reports 干的事。）</p>
+  </div>
+
+  <h2>这一课通向哪</h2>
+  <p>你现在手里有了稻草人和它的失败证据。<strong>M1</strong> 开始动刀：先定义 Knowledge Model
+  （<code>Document / TextUnit / Entity …</code>）并把「文档进→表出」的骨架搭起来——为 M2 让 LLM 从 chunk 里抽出
+  <em>实体和关系</em>做准备。一步步走到 <strong>M5</strong>，你会用自己写的 global search 回头把今天 Q3/Q4 的翻车<strong>打赢</strong>。</p>
+
+  <div class="foot">
+    <p><b>主来源（先读这个）：</b><a href="https://arxiv.org/pdf/2404.16130">GraphRAG 论文 §1–2</a>——
+    作者一上来就论证「naive RAG 答不了 global sensemaking 问题」，正是你今天亲手验证的那件事。</p>
+    <p><b>有疑问就拷打你的老师（我）。</b>跑不通、答案和预测不符、想加中文语料、想换 qwen 别的尺寸——
+    随时问。跑完把 Q3/Q4 的实际答案贴给我，我们一起拆「它具体烂在哪」，作为 M1 的起点。</p>
+  </div>
+
+</div>
+<script>
+  function pick(btn, choice){
+    var q = btn.closest('.q');
+    if(q.classList.contains('answered')) return;
+    q.classList.add('answered');
+    var correct = q.dataset.ans;
+    btn.style.borderColor = (choice===correct) ? 'var(--good)' : 'var(--bad)';
+    btn.style.background = (choice===correct) ? '#eef7f0' : '#fbeeee';
+  }
+</script>
+</body>
+</html>
